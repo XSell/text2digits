@@ -13,6 +13,7 @@ class WordType(enum.Enum):
     SCALES = 6
     CONJUNCTION = 7
     REPLACED = 8
+    MONTH = 9
 
 
 class Token(object):
@@ -22,10 +23,13 @@ class Token(object):
              'nineteen']
     TENS = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
     SCALES = ['hundred', 'thousand', 'million', 'billion', 'trillion']
+    SCALE_VALUES = [100, 1000, 1000000, 1000000000, 1000000000000] # used for has_large_scale
     CONJUNCTION = ['and']
     ORDINAL_WORDS = {'oh': 'zero', 'first': 'one', 'second': 'two', 'third': 'three', 'fifth': 'five',
                      'eighth': 'eight', 'ninth': 'nine', 'twelfth': 'twelve'}
     ORDINAL_ENDINGS = [('ieth', 'y'), ('th', '')]
+    MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+    MMM_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
     numwords = {
         'and': (1, 0)  # (scale, value)
@@ -38,6 +42,10 @@ class Token(object):
         numwords[word] = (1, (idx + 2) * 10)
     for idx, word in enumerate(SCALES):
         numwords[word] = (10 ** (idx * 3 or 2), 0)
+    for idx, word in enumerate(MONTHS):
+        numwords[word] = (1, idx + 1)
+    for idx, word in enumerate(MMM_MONTHS):
+        numwords[word] = (1, idx + 1)
 
     def __init__(self, word: str, glue: str):
         """
@@ -80,6 +88,8 @@ class Token(object):
             self.type = WordType.LITERAL_FLOAT
         elif re.search(r'^\d+$', self._word):
             self.type = WordType.LITERAL_INT
+        elif self._word in Token.MONTHS or self._word in Token.MMM_MONTHS:
+            self.type = WordType.MONTH
         else:
             self.type = WordType.OTHER
 
@@ -96,7 +106,8 @@ class Token(object):
         if self.type == WordType.SCALES:
             return True
         elif self.type in [WordType.LITERAL_INT, WordType.LITERAL_FLOAT]:
-            return Decimal(self._word) >= 100 and Decimal(self._word) % 10 == 0
+            # whether the value is a scale (e.g. 100, 1000, 1000000, etc.)
+            return Decimal(self._word) in self.SCALE_VALUES
         else:
             return False
 
